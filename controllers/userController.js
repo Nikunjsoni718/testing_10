@@ -2,6 +2,7 @@ const { z } = require('zod');
 const db = require('../services/db');
 const authService = require('../services/authService');
 const mailer = require('../services/mailer');
+const logger = require('../services/logger');
 
 // GOOD PATTERN: parameterized query, no string concatenation.
 async function getUserProfile(req, res, next) {
@@ -65,7 +66,10 @@ async function registerUser(req, res, next) {
     try {
       await mailer.sendWelcomeEmail(user.email);
     } catch (mailErr) {
-      console.error('Welcome email failed to send:', mailErr);
+      logger.error('Welcome email failed to send', {
+        email: user.email,
+        error: mailErr.message,
+      });
     }
 
     res.status(201).json({ id: user.id, name: user.name, email: user.email });
