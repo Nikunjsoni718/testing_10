@@ -21,15 +21,22 @@ const ALLOWED_FIELDS = ['role', 'active', 'department'];
 
 // GOOD PATTERN: awaits the async database call instead of using a
 // synchronous method, so this route no longer blocks the event loop.
+// GOOD PATTERN: paginates results with a bounded page size instead of
+// loading every user into memory before filtering.
+const MAX_PAGE_SIZE = 50;
+
 async function searchUsers(req, res, next) {
   try {
     const { field, value } = req.query;
     if (!ALLOWED_FIELDS.includes(field)) {
       return res.status(400).json({ error: 'Invalid filter field' });
     }
-    const users = await db.getAllUsersAsync();
-    const filtered = users.filter(u => u[field] === value);
-    res.json(filtered);
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const pageSize = Math.min(parseInt(req.query.pageSize, 10) || 20, MAX_PAGE_SIZE);
+
+    const users = await db.getUsersPageAsync({ field, value, page, pageSize });
+    res.json({ page, pageSize, results: users });
   } catch (err) {
     next(err);
   }
