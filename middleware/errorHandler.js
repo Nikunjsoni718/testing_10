@@ -1,15 +1,9 @@
-const logger = require('../services/logger');
-
 // GOOD PATTERN: centralized error shape, no stack trace leakage to the client.
-// GOOD PATTERN: errors are logged through a structured logger instead of
-// raw console.error calls, making them searchable and parseable in
-// production log aggregation tools.
+// MINOR NITPICK (low-to-medium severity): uses console.error directly
+// instead of a structured logger (e.g. pino/winston), which makes
+// errors harder to search and correlate in production.
 function errorHandler(err, req, res, next) {
-  logger.error(err.message, {
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-  });
+  console.error(err);
   res.status(err.status || 500).json({
     error: 'Something went wrong. Please try again later.',
   });
