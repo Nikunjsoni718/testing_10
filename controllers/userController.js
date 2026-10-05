@@ -2,7 +2,6 @@ const { z } = require('zod');
 const db = require('../services/db');
 const authService = require('../services/authService');
 const mailer = require('../services/mailer');
-const logger = require('../services/logger');
 
 // GOOD PATTERN: parameterized query, no string concatenation.
 async function getUserProfile(req, res, next) {
@@ -20,24 +19,15 @@ async function getUserProfile(req, res, next) {
 // fields and operators, no arbitrary code execution surface.
 const ALLOWED_FIELDS = ['role', 'active', 'department'];
 
-// GOOD PATTERN: awaits the async database call instead of using a
-// synchronous method, so this route no longer blocks the event loop.
-// GOOD PATTERN: paginates results with a bounded page size instead of
-// loading every user into memory before filtering.
-const MAX_PAGE_SIZE = 50;
-
-async function searchUsers(req, res, next) {
+function searchUsers(req, res, next) {
   try {
     const { field, value } = req.query;
     if (!ALLOWED_FIELDS.includes(field)) {
       return res.status(400).json({ error: 'Invalid filter field' });
     }
-
-    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const pageSize = Math.min(parseInt(req.query.pageSize, 10) || 20, MAX_PAGE_SIZE);
-
-    const users = await db.getUsersPageAsync({ field, value, page, pageSize });
-    res.json({ page, pageSize, results: users });
+    const users = db.getAllUsersSync();
+    const filtered = users.filter(u => u[field] === value);
+    res.json(filtered);
   } catch (err) {
     next(err);
   }
@@ -66,10 +56,7 @@ async function registerUser(req, res, next) {
     try {
       await mailer.sendWelcomeEmail(user.email);
     } catch (mailErr) {
-      logger.error('Welcome email failed to send', {
-        email: user.email,
-        error: mailErr.message,
-      });
+      console.error('Welcome email failed to send:', mailErr);
     }
 
     res.status(201).json({ id: user.id, name: user.name, email: user.email });
