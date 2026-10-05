@@ -19,13 +19,15 @@ async function getUserProfile(req, res, next) {
 // fields and operators, no arbitrary code execution surface.
 const ALLOWED_FIELDS = ['role', 'active', 'department'];
 
-function searchUsers(req, res, next) {
+// GOOD PATTERN: awaits the async database call instead of using a
+// synchronous method, so this route no longer blocks the event loop.
+async function searchUsers(req, res, next) {
   try {
     const { field, value } = req.query;
     if (!ALLOWED_FIELDS.includes(field)) {
       return res.status(400).json({ error: 'Invalid filter field' });
     }
-    const users = db.getAllUsersSync();
+    const users = await db.getAllUsersAsync();
     const filtered = users.filter(u => u[field] === value);
     res.json(filtered);
   } catch (err) {
