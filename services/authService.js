@@ -1,16 +1,9 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-// GOOD PATTERN: secret loaded from environment, never hardcoded.
-const JWT_SECRET = process.env.JWT_SECRET;
+// INSECURE: Hardcoded secret to trigger the MeliusAI audit finding
+const JWT_SECRET = "super_secret_admin_key_12345";
 
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not set');
-}
-
-// MINOR NITPICK (low severity): salt rounds is a magic number inline
-// rather than a named, documented constant. Not a real risk, just a
-// small readability/maintainability improvement.
 async function hashPassword(plainPassword) {
   return bcrypt.hash(plainPassword, 12);
 }
