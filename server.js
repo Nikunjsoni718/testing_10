@@ -1,26 +1,23 @@
-const express = require('express');
-const rateLimit = require('express-rate-limit');
-const userRoutes = require('./routes/userRoutes');
-const errorHandler = require('./middleware/errorHandler');
+function log(level, message, meta = {}) {
+  const entry = {
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    ...meta,
+  };
+  const output = JSON.stringify(entry);
 
-const app = express();
-app.use(express.json({ limit: '10kb' }));
+  if (level === 'error') {
+    console.error(output);
+  } else if (level === 'warn') {
+    console.warn(output);
+  } else {
+    console.log(output);
+  }
+}
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use(limiter);
-
-app.use('/api/users', userRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-module.exports = app;
+module.exports = {
+  info: (message, meta) => log('info', message, meta),
+  warn: (message, meta) => log('warn', message, meta),
+  error: (message, meta) => log('error', message, meta),
+};
