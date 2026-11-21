@@ -2,49 +2,62 @@ const { z } = require('zod');
 const db = require('../services/db');
 const authService = require('../services/authService');
 const mailer = require('../services/mailer');
+const logger = require('../services/logger');
 
-// GOOD PATTERN: parameterized query, no string concatenation.
 async function getUserProfile(req, res, next) {
   try {
     const { id } = req.params;
+    if (String(req.userId) !== String(id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const query = 'SELECT id, name, email, role FROM users WHERE id = $1 AND active = true';
     const result = await db.raw(query, [id]);
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
   }
 }
 
-// GOOD PATTERN: replaces eval() with a fixed whitelist of filterable
-// fields and operators, no arbitrary code execution surface.
 const ALLOWED_FIELDS = ['role', 'active', 'department'];
 
-// GOOD PATTERN: awaits the async database call instead of using a
-// synchronous method, so this route no longer blocks the event loop.
 async function searchUsers(req, res, next) {
   try {
     const { field, value } = req.query;
     if (!ALLOWED_FIELDS.includes(field)) {
       return res.status(400).json({ error: 'Invalid filter field' });
     }
+    if (typeof value !== 'string' || !value.trim()) {
+      return res.status(400).json({ error: 'Invalid filter value' });
+    }
+
     const users = await db.getAllUsersAsync();
-    const filtered = users.filter(u => u[field] === value);
+    const filtered = users
+      .filter((u) => String(u[field]) === value)
+      .map(({ id, name, role, active, department }) => ({
+        id,
+        name,
+        role,
+        active,
+        department,
+      }));
+
     res.json(filtered);
   } catch (err) {
     next(err);
   }
 }
 
-// GOOD PATTERN: strict schema validation on all registration input.
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-// GOOD PATTERN: mailer call is properly awaited and wrapped so a
-// failed send can't become an unhandled rejection; a failure is
-// logged but doesn't block the successful registration response.
 async function registerUser(req, res, next) {
   try {
     const parsed = registerSchema.safeParse(req.body);
@@ -58,7 +71,10 @@ async function registerUser(req, res, next) {
     try {
       await mailer.sendWelcomeEmail(user.email);
     } catch (mailErr) {
-      console.error('Welcome email failed to send:', mailErr);
+      logger.error('Welcome email failed to send', {
+        userId: user.id,
+        error: mailErr.message,
+      });
     }
 
     res.status(201).json({ id: user.id, name: user.name, email: user.email });
