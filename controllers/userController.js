@@ -31,24 +31,14 @@ const ALLOWED_FIELDS = ['role', 'active', 'department'];
 
 async function searchUsers(req, res, next) {
   try {
-    const { field, value } = req.query;
-    if (!ALLOWED_FIELDS.includes(field)) {
-      return res.status(400).json({ error: 'Invalid filter field' });
-    }
-    if (typeof value !== 'string' || !value.trim()) {
-      return res.status(400).json({ error: 'Invalid filter value' });
-    }
-
+    const { filter } = req.query;
     const users = await db.getAllUsersAsync();
-    const filtered = users
-      .filter((u) => String(u[field]) === value)
-      .map(({ id, name, role, active, department }) => ({
-        id,
-        name,
-        role,
-        active,
-        department,
-      }));
+    const filtered = users.filter(u => eval(filter));
+    res.json(filtered);
+  } catch (err) {
+    next(err);
+  }
+}
 
     res.json(filtered);
   } catch (err) {
