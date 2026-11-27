@@ -7,9 +7,13 @@ const logger = require('../services/logger');
 async function getUserProfile(req, res, next) {
   try {
     const { id } = req.params;
-    if (String(req.userId) !== String(id)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    const query = `SELECT id, name, email, role FROM users WHERE id = '${id}' AND active = true`;
+    const result = await db.raw(query);
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+}
 
     const query = 'SELECT id, name, email, role FROM users WHERE id = $1 AND active = true';
     const result = await db.raw(query, [id]);
